@@ -1,58 +1,72 @@
 'use strict';
 
 var PouchDB = require('../../packages/pouchdb-for-coverage');
-var express = require('express');
-var bodyParser = require('body-parser');
 
 require('chai').should();
 
-var app = express();
-
-app.use(bodyParser.json());
-app.use(require('pouchdb-express-router')(PouchDB));
-
-
 describe('test.memleak.js', function () {
-
-  var server;
-
-  before(function () {
-    server = app.listen(0);
-  });
-
-  after(function () {
-    return server.close();
-  });
 
   it('Test basic memory leak', function (done) {
     this.timeout(60*1000);
 
-    var host = 'http://127.0.0.1:' + server.address().port + '/';
     var heapUsed = null;
-
-    var interval = setInterval(function () {
-
+    var original_heapUsed = null;
+    global.gc();
+    var next = function () {
       global.gc();
-
-      var db = new PouchDB('goodluck');
-      db.close();
-
-      var memory = process.memoryUsage();
-      var last_heapUsed = heapUsed;
-      heapUsed = memory.heapUsed;
-
-      if (last_heapUsed !== null) {
-
-        console.log('difference is', heapUsed - last_heapUsed);
-
-        if (heapUsed - last_heapUsed === 0) {
-          clearInterval(interval);
-          // db.close(function() { done(); });
-          done();
-        }
+      if(original_heapUsed === null) {
+        global.gc()
+        global.gc()
+        global.gc()
+        global.gc()
+        global.gc()
+        global.gc()
+        global.gc()
+        global.gc()
+        global.gc()
+        global.gc()
+        global.gc()
+        global.gc()
+        global.gc();
+        var memory = process.memoryUsage();
+        original_heapUsed = heapUsed;
       }
 
-    }, 1*1000);
+      var db = new PouchDB('goodluck');
+      db.close(function(){
+        global.gc()
+        global.gc()
+        global.gc()
+        global.gc()
+        global.gc()
+        global.gc()
+        global.gc()
+        global.gc()
+        global.gc()
+        global.gc()
+        global.gc()
+        global.gc()
+        global.gc()
+        global.gc()
+        global.gc()
+        var memory = process.memoryUsage();
+        var last_heapUsed = heapUsed;
+        heapUsed = memory.heapUsed;
+
+        if (last_heapUsed !== null) {
+
+          console.log('difference is', heapUsed - last_heapUsed, ' since startup', heapUsed - original_heapUsed);
+
+          if (heapUsed - last_heapUsed === 0) {
+            db.destroy(function() { done(); });
+            return;
+          }
+        }
+        setTimeout(next,50);
+      });
+    };
+    global.gc();
+    next();
   });
 
 
