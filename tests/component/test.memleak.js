@@ -25,6 +25,7 @@ describe('test.memleak.js', function () {
   });
 
   it('Test basic memory leak', function (done) {
+    this.timeout(60*1000);
 
     var host = 'http://127.0.0.1:' + server.address().port + '/';
     var heapUsed = null;
@@ -34,6 +35,7 @@ describe('test.memleak.js', function () {
       global.gc();
 
       var db = new PouchDB('goodluck');
+      db.close();
 
       var memory = process.memoryUsage();
       var last_heapUsed = heapUsed;
@@ -45,11 +47,12 @@ describe('test.memleak.js', function () {
 
         if (heapUsed - last_heapUsed === 0) {
           clearInterval(interval);
-          db.destroy(function() { done(); });
+          // db.close(function() { done(); });
+          done();
         }
       }
 
-    }, 10);
+    }, 1*1000);
   });
 
 
