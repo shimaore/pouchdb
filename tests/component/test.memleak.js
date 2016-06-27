@@ -1,13 +1,16 @@
 'use strict';
+var heapdump = require('heapdump');
 
-var PouchDB = require('../../packages/pouchdb-for-coverage');
+var MemDown = require('memdown');
+var PouchDB = require('../../packages/pouchdb-for-coverage')
+  // .defaults({db:MemDown});
 
 require('chai').should();
 
 describe('test.memleak.js', function () {
 
   it('Test basic memory leak', function (done) {
-    this.timeout(60*1000);
+    this.timeout(600*1000);
 
     var heapUsed = null;
     var original_heapUsed = null;
@@ -34,6 +37,7 @@ describe('test.memleak.js', function () {
 
       var db = new PouchDB('goodluck');
       db.close(function(){
+        db = null;
         global.gc()
         global.gc()
         global.gc()
@@ -53,16 +57,21 @@ describe('test.memleak.js', function () {
         var last_heapUsed = heapUsed;
         heapUsed = memory.heapUsed;
 
+        var delta = null;
+        var original_delta = null;
         if (last_heapUsed !== null) {
-
-          console.log('difference is', heapUsed - last_heapUsed, ' since startup', heapUsed - original_heapUsed);
+          delta = heapUsed - last_heapUsed;
+          original_delta = heapUsed - original_heapUsed;
+          // console.log('difference is', delta, ' since startup', original_delta);
 
           if (heapUsed - last_heapUsed === 0) {
-            db.destroy(function() { done(); });
+            // db.destroy(function() { done(); });
             return;
           }
         }
-        setTimeout(next,50);
+        heapdump.writeSnapshot((new Date().toISOString())+'_'+delta+'_'+original_delta+'.heapsnapshot', function(){
+        setTimeout(next,500);
+        })
       });
     };
     global.gc();
