@@ -133,10 +133,6 @@ matrix:
     services: docker
     env: CLIENT=node COMMAND=test
 
-branches:
-  only:
-  - master
-
 cache:
   directories:
   - $HOME/.npm
