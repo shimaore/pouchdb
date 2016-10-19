@@ -131,8 +131,7 @@ if (!process.env.LEVEL_ADAPTER &&
 
       var db = new CustomPouch('mydb');
       return new testUtils.Promise(function (resolve) {
-        CustomPouch.once('destroyed', function (name) {
-          name.should.equal('mydb');
+        CustomPouch.once('destroyed '+name, function () {
           resolve();
         });
         db.destroy();
