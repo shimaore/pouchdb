@@ -135,7 +135,7 @@ matrix:
 
 branches:
   only:
-  - master
+  - memleak-take2-travis
 
 cache:
   directories:
