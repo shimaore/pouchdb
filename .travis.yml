@@ -133,6 +133,10 @@ matrix:
     services: docker
     env: CLIENT=node COMMAND=test
 
+branches:
+  only:
+  - event-destroyed-travis
+
 cache:
   directories:
   - $HOME/.npm
