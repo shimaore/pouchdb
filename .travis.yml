@@ -135,7 +135,7 @@ matrix:
 
 branches:
   only:
-  - master
+  - test-closed-and-destroyed+travis
 
 cache:
   directories:
