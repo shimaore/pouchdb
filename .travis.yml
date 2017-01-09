@@ -1,7 +1,7 @@
 language: node_js
 
 node_js:
-  - "5"
+  - "6"
 
 services:
   - docker
@@ -39,7 +39,10 @@ before_script:
   # is a lint failure
   - npm run eslint
 
-script: npm run $COMMAND
+# travis_retry will try up to 3 times to run the script. our tests
+# are flaky enough (Selenium, SauceLabs, network, etc.) that this
+# mitigates a lot of false negatives
+script: travis_retry npm run $COMMAND
 
 env:
   global:
@@ -116,7 +119,7 @@ matrix:
     - node_js: "4"
       services: docker
       env: CLIENT=node COMMAND=test
-    - node_js: "stable"
+    - node_js: "7"
       services: docker
       env: CLIENT=node COMMAND=test
   allow_failures:
@@ -124,7 +127,7 @@ matrix:
   - env: COUCH_HOST=http://127.0.0.1:3001 SKIP_MIGRATION=true CLIENT=selenium:firefox:47.0.2 SERVER=couchdb-master COMMAND=test
   - env: CLIENT=selenium:firefox:47.0.2 PERF=1 COMMAND=test
   - env: CLIENT=selenium:firefox:47.0.2 NEXT=1 COMMAND=test
-  - node_js: "stable"
+  - node_js: "7"
     services: docker
     env: CLIENT=node COMMAND=test
 
