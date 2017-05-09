@@ -6,31 +6,41 @@ var commonUtils = require('../common-utils.js');
 var Promise = require('lie');
 var nextTick = (typeof process === 'undefined' || process.browser) ?
   setTimeout : process.nextTick;
-var markMeasure = require('./markMeasure');
 
 var grep;
+var iterations;
 if (global.window && global.window.location && global.window.location.search) {
   grep = global.window.location.search.match(/[&?]grep=([^&]+)/);
   grep = grep && grep[1];
+  iterations = global.window.location.search.match(/[&?]iterations=([^&]+)/);
+  iterations = iterations && parseInt(iterations[1], 10);
 } else if (process && process.env) {
   grep = process.env.GREP;
+  iterations = process.env.ITERATIONS && parseInt(process.env.ITERATIONS, 10);
 }
 
-var levelAdapter = typeof process !== 'undefined' && process.env &&
-    process.env.LEVEL_ADAPTER;
+var adapterUsed;
 
-exports.runTests = function (PouchDB, suiteName, testCases, opts) {
+exports.runTests = function (PouchDB, suiteName, testCases, opts, callback) {
+
+  testCases = testCases.filter(function (testCase) {
+    if (grep && suiteName.indexOf(grep) === -1 &&
+      testCase.name.indexOf(grep) === -1) {
+      return false;
+    }
+    var iter = typeof iterations === 'number' ? iterations :
+      testCase.iterations;
+    return iter !== 0;
+  });
+
+  if (!testCases.length) {
+    return callback();
+  }
+
   testCases.forEach(function (testCase, i) {
     var testName = testCase.name;
-    if (grep && suiteName.indexOf(grep) === -1 &&
-        testName.indexOf(grep) === -1) {
-      return;
-    }
-
-    if (testCase.iterations === 0) {
-      return;
-    }
-
+    var iter = typeof iterations === 'number' ? iterations :
+      testCase.iterations;
     test('benchmarking', function (t) {
       var db;
       var setupObj;
@@ -39,10 +49,8 @@ exports.runTests = function (PouchDB, suiteName, testCases, opts) {
 
       t.test('setup', function (t) {
         opts.size = 3000;
-        if (levelAdapter) {
-          opts.db = require(levelAdapter);
-        }
         db = new PouchDB(localDbName, opts);
+        adapterUsed = db.adapter;
         testCase.setup(db, function (err, res) {
           if (err) {
             t.error(err);
@@ -52,7 +60,7 @@ exports.runTests = function (PouchDB, suiteName, testCases, opts) {
           if (i === 0) {
             reporter.startSuite(suiteName);
           }
-          reporter.start(testCase);
+          reporter.start(testCase, iter);
           t.end();
         });
       });
@@ -62,7 +70,7 @@ exports.runTests = function (PouchDB, suiteName, testCases, opts) {
         var num = 0;
         function next() {
           nextTick(function () {
-            markMeasure.mark('start_' + testName);
+            reporter.startIteration(testCase);
             testCase.test(db, num, setupObj, after);
           });
         }
@@ -71,10 +79,9 @@ exports.runTests = function (PouchDB, suiteName, testCases, opts) {
             t.error(err);
             reporter.log(testName + ' errored: ' + err.message + '\n');
           } else {
-            markMeasure.mark('end_' + testName);
-            markMeasure.measure(testName, 'start_' + testName, 'end_' + testName);
+            reporter.endIteration(testCase);
           }
-          if (++num < testCase.iterations) {
+          if (++num < iter) {
             next();
           } else {
             t.ok(testName + ' completed');
@@ -90,14 +97,11 @@ exports.runTests = function (PouchDB, suiteName, testCases, opts) {
         testCaseTeardown.then(function () {
           reporter.end(testCase);
           var opts = {adapter : db.adapter};
-          if (levelAdapter) {
-            opts.db = require(levelAdapter);
-          }
           return new PouchDB(localDbName, opts).destroy();
         }).then(function () {
           t.end();
           if (i === testCases.length - 1) {
-            reporter.complete(suiteName);
+            callback(adapterUsed);
           }
         });
       });
